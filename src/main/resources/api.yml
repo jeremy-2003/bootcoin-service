@@ -1,0 +1,628 @@
+openapi: 3.0.3
+info:
+  title: BootCoin API
+  description: API for managing BootCoin transactions, exchange rates and users
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:8080'
+    description: Development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    BaseResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          format: int32
+          example: 200
+        message:
+          type: string
+          example: "Success"
+        data:
+          type: object
+          nullable: true
+
+    TransactionStatus:
+      type: string
+      enum: [PENDING, COMPLETED, REJECTED, CANCELLED]
+
+    TransactionType:
+      type: string
+      enum: [BUY, SELL]
+
+    PaymentMethod:
+      type: string
+      enum: [YANKI, BANK_ACCOUNT]
+
+    # DTO Schemas
+    BootCoinBankTransactionRequest:
+      type: object
+      required:
+        - amount
+        - transactionType
+        - accountNumber
+      properties:
+        amount:
+          type: number
+          format: decimal
+          example: 100.50
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        accountNumber:
+          type: string
+          example: "123456789"
+
+    BootCoinBankTransactionResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          example: "t123e456"
+        buyerDocumentNumber:
+          type: string
+          example: "12345678"
+        amount:
+          type: number
+          format: decimal
+          example: 100.50
+        totalAmountInPEN:
+          type: number
+          format: decimal
+          example: 380.90
+        buyerAccountNumber:
+          type: string
+          example: "123456789"
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        createdAt:
+          type: string
+          format: date-time
+        exchangeRate:
+          type: number
+          format: decimal
+          example: 3.8
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        updatedAt:
+          type: string
+          format: date-time
+
+    BootCoinExchangeRate:
+      type: object
+      required:
+        - buyRate
+        - sellRate
+      properties:
+        buyRate:
+          type: number
+          format: decimal
+          example: 3.75
+        sellRate:
+          type: number
+          format: decimal
+          example: 3.85
+        updatedAt:
+          type: string
+          format: date-time
+
+    BootCoinPurchaseRequest:
+      type: object
+      required:
+        - amount
+        - paymentMethod
+      properties:
+        amount:
+          type: number
+          format: decimal
+          example: 100.50
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+
+    BootCoinPurchaseResponse:
+      type: object
+      properties:
+        purchaseId:
+          type: string
+          example: "p123e456"
+        buyerDocumentNumber:
+          type: string
+          example: "12345678"
+        buyerPhoneNumber:
+          type: string
+          example: "999888777"
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        amount:
+          type: number
+          format: decimal
+          example: 100.50
+        totalAmountInPEN:
+          type: number
+          format: decimal
+          example: 380.90
+        transactionType:
+          $ref: '#/components/schemas/TransactionType'
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        sellerDocumentNumber:
+          type: string
+          example: "87654321"
+        sellerPhoneNumber:
+          type: string
+          example: "999777888"
+        sellerAccountNumber:
+          type: string
+          example: "987654321"
+        createdAt:
+          type: string
+          format: date-time
+
+    BootCoinSellRequest:
+      type: object
+      required:
+        - accountNumber
+      properties:
+        accountNumber:
+          type: string
+          example: "987654321"
+
+    BootCoinUserRegistrationRequest:
+      type: object
+      required:
+        - documentNumber
+        - phoneNumber
+      properties:
+        documentNumber:
+          type: string
+          example: "12345678"
+        phoneNumber:
+          type: string
+          example: "999888777"
+
+    BootCoinUserRegistrationResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: "u123e456"
+        hasYanki:
+          type: boolean
+          example: false
+        bankAccountId:
+          type: string
+          example: "b123e456"
+          nullable: true
+
+    LoginRequest:
+      type: object
+      required:
+        - phoneNumber
+        - documentNumber
+      properties:
+        phoneNumber:
+          type: string
+          example: "999888777"
+        documentNumber:
+          type: string
+          example: "12345678"
+
+    AssociateYankiRequest:
+      type: object
+      required:
+        - phoneNumber
+      properties:
+        phoneNumber:
+          type: string
+          example: "999888777"
+
+    AssociateYankiResponse:
+      type: object
+      properties:
+        documentNumber:
+          type: string
+          example: "12345678"
+        hasYanki:
+          type: boolean
+          example: true
+
+    AssociateBankAccountRequest:
+      type: object
+      required:
+        - accountNumber
+      properties:
+        accountNumber:
+          type: string
+          example: "123456789"
+
+    AssociateBankAccountResponse:
+      type: object
+      properties:
+        documentNumber:
+          type: string
+          example: "12345678"
+        bankAccountId:
+          type: string
+          example: "b123e456"
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/bootcoin/transaction-bank/request:
+    post:
+      tags:
+        - Transaction Bank
+      summary: Request a BootCoin bank transaction
+      description: Create a BootCoin bank transaction request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootCoinBankTransactionRequest'
+      responses:
+        '200':
+          description: Transaction request created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinBankTransactionResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/exchange-rate:
+    get:
+      tags:
+        - Exchange Rate
+      summary: Get current exchange rate
+      description: Returns the current BootCoin exchange rate
+      responses:
+        '200':
+          description: Exchange rate retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinExchangeRate'
+        '404':
+          description: No exchange rate found
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/exchange-rate/create:
+    post:
+      tags:
+        - Exchange Rate
+      summary: Create a new exchange rate
+      description: Creates a new BootCoin exchange rate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootCoinExchangeRate'
+      responses:
+        '201':
+          description: Exchange rate created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinExchangeRate'
+        '400':
+          description: Exchange rate already exists
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/exchange-rate/update:
+    put:
+      tags:
+        - Exchange Rate
+      summary: Update existing exchange rate
+      description: Updates an existing BootCoin exchange rate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootCoinExchangeRate'
+      responses:
+        '200':
+          description: Exchange rate updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinExchangeRate'
+        '400':
+          description: Exchange rate does not exist, cannot update
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/purchases:
+    post:
+      tags:
+        - Purchases
+      summary: Request a BootCoin purchase
+      description: Creates a BootCoin purchase request
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootCoinPurchaseRequest'
+      responses:
+        '200':
+          description: Purchase request created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinPurchaseResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+    get:
+      tags:
+        - Purchases
+      summary: Get pending purchases
+      description: Returns the list of pending purchase requests
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pending purchase requests retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinPurchaseResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/purchases/{purchaseId}/accept:
+    post:
+      tags:
+        - Purchases
+      summary: Accept a purchase request
+      description: Accepts an existing BootCoin purchase request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: purchaseId
+          in: path
+          description: ID of the purchase request to accept
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootCoinSellRequest'
+      responses:
+        '200':
+          description: Purchase request accepted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinPurchaseResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/user/register:
+    post:
+      tags:
+        - User
+      summary: Register a new user
+      description: Creates a new user for the BootCoin system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootCoinUserRegistrationRequest'
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/BootCoinUserRegistrationResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/user/login:
+    post:
+      tags:
+        - User
+      summary: Login
+      description: Authenticate a user and obtain a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: string
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/user/associate-yanki:
+    post:
+      tags:
+        - User
+      summary: Associate Yanki account
+      description: Associates a Yanki account to an existing user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssociateYankiRequest'
+      responses:
+        '200':
+          description: Yanki account associated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AssociateYankiResponse'
+        '400':
+          description: Error associating Yanki account
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+
+  /api/bootcoin/user/associate-bank-account:
+    post:
+      tags:
+        - User
+      summary: Associate bank account
+      description: Associates a bank account to an existing user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssociateBankAccountRequest'
+      responses:
+        '200':
+          description: Bank account associated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AssociateBankAccountResponse'
+        '400':
+          description: Error associating bank account
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'

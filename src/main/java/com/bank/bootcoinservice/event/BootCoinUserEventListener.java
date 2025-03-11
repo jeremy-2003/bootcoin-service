@@ -4,13 +4,14 @@ import com.bank.bootcoinservice.dto.event.KafkaValidationRequest;
 import com.bank.bootcoinservice.dto.event.KafkaValidationResponse;
 import io.reactivex.Single;
 import io.reactivex.subjects.PublishSubject;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
+@Slf4j
 @Component
 public class BootCoinUserEventListener {
     private final KafkaTemplate<String, KafkaValidationRequest> kafkaTemplate;
@@ -25,12 +26,14 @@ public class BootCoinUserEventListener {
         pendingEvents.put(request.getEventId(), successSubject);
         pendingErrors.put(request.getEventId(), errorSubject);
         kafkaTemplate.send(topic, request.getEventId(), request);
-        return successSubject.firstOrError()
-                .flatMap(success -> success ? Single.just(true) :
-                        errorSubject.firstOrError()
-                                .flatMap(errorMessage ->
-                                    Single.error(new RuntimeException(
-                                        "Validation failed: " + errorMessage))));
+        return Single.ambArray(
+                successSubject.firstOrError().flatMap(
+                    success -> success ? Single.just(true) :
+                    Single.error(new RuntimeException("Validation failed"))),
+                errorSubject.firstOrError().flatMap(
+                    errorMessage -> Single.error(
+                        new RuntimeException("The document doesnt have Yanki or Account: " + errorMessage)))
+        );
     }
     @KafkaListener(topics = "bootcoin.validation.response", groupId = "bootcoin-service")
     public void handleValidationResponse(KafkaValidationResponse response) {
@@ -40,8 +43,10 @@ public class BootCoinUserEventListener {
         if (pendingEvents.containsKey(eventId)) {
             if (success) {
                 pendingEvents.get(eventId).onNext(true);
+                pendingEvents.get(eventId).onComplete();
             } else {
                 pendingErrors.get(eventId).onNext(errorMessage);
+                pendingErrors.get(eventId).onComplete();
             }
             pendingEvents.remove(eventId);
             pendingErrors.remove(eventId);
